@@ -1,82 +1,117 @@
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import ttk, messagebox, filedialog
 
 class PTSD_Detector:
     def __init__(self, root):
         self.root = root
-        self.root.title("PTSD Detector")
-        self.root.geometry("500x600")
+        self.root.title("PTSD Detector Pro")
+        self.root.geometry("750x800")
+        self.root.configure(bg="#F0F8FF")
         
         self.questions = [
-            "1. In the last month, how often have you had distressing thoughts or memories of the traumatic event?",
-            "2. In the last month, how often have you avoided thoughts or feelings related to the traumatic event?",
-            "3. In the last month, how often have you been easily startled or felt tense?",
-            "4. In the last month, how often have you experienced trouble sleeping?"
+            "In the last month, how often have you had distressing thoughts or memories of the traumatic event?",
+            "In the last month, how often have you avoided thoughts or feelings related to the traumatic event?",
+            "In the last month, how often have you been easily startled or felt tense?",
+            "In the last month, how often have you experienced trouble sleeping?"
         ]
         
         self.responses = []
-        
         self.create_widgets()
+        self.create_menu()
+    
+    def create_menu(self):
+        menu_bar = tk.Menu(self.root)
+        self.root.config(menu=menu_bar)
+        
+        file_menu = tk.Menu(menu_bar, tearoff=0)
+        file_menu.add_command(label="Export Results", command=self.export_results)
+        file_menu.add_command(label="Exit", command=self.root.quit)
+        menu_bar.add_cascade(label="File", menu=file_menu)
+        
+        help_menu = tk.Menu(menu_bar, tearoff=0)
+        help_menu.add_command(label="About", command=self.show_about)
+        menu_bar.add_cascade(label="Help", menu=help_menu)
     
     def create_widgets(self):
-        # Title and Instructions
-        intro_label = tk.Label(self.root, text="PTSD Screening Tool", font=("Helvetica", 18, "bold"))
-        intro_label.grid(row=0, column=0, columnspan=2, pady=15)
-
-        instruction_label = tk.Label(self.root, text="Please rate how often you have experienced the following symptoms on a scale of 0 (Not at all) to 4 (Very often).", wraplength=450)
-        instruction_label.grid(row=1, column=0, columnspan=2, pady=10)
+        main_frame = ttk.Frame(self.root, padding=20)
+        main_frame.pack(fill=tk.BOTH, expand=True)
         
-        # Questions and Scales
-        for idx, question in enumerate(self.questions):
-            label = tk.Label(self.root, text=question, anchor="w", padx=10, pady=5, font=("Helvetica", 12))
-            label.grid(row=2 + idx, column=0, sticky="w", padx=20)
-            
-            response = tk.StringVar()
+        ttk.Label(main_frame, text="PTSD Symptom Assessment", font=("Arial", 20, "bold")).pack()
+        
+        instruction_text = "Please rate your experience of the following symptoms in the past month:"
+        ttk.Label(main_frame, text=instruction_text, wraplength=600, font=("Arial", 12)).pack(pady=10)
+        
+        scale_values = ["Never (0)", "Rarely (1)", "Sometimes (2)", "Often (3)", "Very Often (4)"]
+        
+        for question in self.questions:
+            frame = ttk.Frame(main_frame)
+            frame.pack(fill=tk.X, pady=8)
+            ttk.Label(frame, text=question, wraplength=600, font=("Arial", 11)).pack(anchor="w")
+            response = tk.StringVar(value="0")
             self.responses.append(response)
-            
-            scale = tk.Scale(self.root, from_=0, to_=4, orient="horizontal", variable=response, tickinterval=1, length=300)
-            scale.set(0)  # default value to 0
-            scale.grid(row=2 + idx, column=1, pady=5, padx=20)
-            
-            # Adding text labels for scale values
-            scale_label_0 = tk.Label(self.root, text="Not at all", font=("Helvetica", 10))
-            scale_label_0.grid(row=2 + idx + 1, column=1, sticky="w", padx=20)
-            scale_label_4 = tk.Label(self.root, text="Very often", font=("Helvetica", 10))
-            scale_label_4.grid(row=2 + idx + 1, column=1, sticky="e", padx=20)
+            ttk.Combobox(frame, values=scale_values, textvariable=response, state="readonly").pack(pady=5)
         
-        # Submit Button
-        submit_button = tk.Button(self.root, text="Submit", command=self.analyze_responses, bg="#4CAF50", fg="white", font=("Helvetica", 12, "bold"))
-        submit_button.grid(row=6, column=0, columnspan=2, pady=20)
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=20)
+        ttk.Button(button_frame, text="Analyze Results", command=self.analyze_responses).pack(side=tk.RIGHT, padx=5)
+        ttk.Button(button_frame, text="Reset Form", command=self.reset_responses).pack(side=tk.RIGHT, padx=5)
         
-        # Reset Button
-        reset_button = tk.Button(self.root, text="Reset", command=self.reset_responses, bg="#FF6347", fg="white", font=("Helvetica", 12))
-        reset_button.grid(row=7, column=0, columnspan=2, pady=10)
-
+        self.result_var = tk.StringVar()
+        result_frame = ttk.Frame(main_frame, relief=tk.SUNKEN, borderwidth=2, padding=10)
+        result_frame.pack(fill=tk.BOTH, expand=True, pady=10)
+        ttk.Label(result_frame, text="Assessment Results:", font=("Arial", 12, "bold")).pack(anchor=tk.W)
+        self.result_text = tk.Text(result_frame, height=4, wrap=tk.WORD, font=("Arial", 11), state=tk.DISABLED)
+        self.result_text.pack(fill=tk.BOTH, expand=True)
+    
     def analyze_responses(self):
-        # Check if all questions have been answered
-        if any(response.get() == '' for response in self.responses):
-            messagebox.showerror("Error", "Please answer all questions before submitting.")
-            return
-        
-        total_score = sum([int(response.get()) for response in self.responses])
+        total_score = sum(int(resp.get()[0]) for resp in self.responses)
         
         if total_score <= 6:
-            message = "Low likelihood of PTSD. However, if you're experiencing difficulties, consider seeking help."
+            result = "Low likelihood of PTSD. However, consider consulting a mental health professional if needed."
+            color = "#27ae60"
         elif 7 <= total_score <= 12:
-            message = "Moderate symptoms. We recommend speaking with a healthcare professional."
+            result = "Moderate symptoms detected. Scheduling an appointment with a healthcare provider is recommended."
+            color = "#f1c40f"
         else:
-            message = "High likelihood of PTSD. Please seek professional help immediately."
+            result = "High likelihood of PTSD detected. Please seek professional help immediately."
+            color = "#e74c3c"
         
-        # Show result and change button state after submission
-        messagebox.showinfo("Result", message)
+        self.result_text.config(state=tk.NORMAL)
+        self.result_text.delete(1.0, tk.END)
+        self.result_text.insert(tk.END, result)
+        self.result_text.tag_config("color", foreground=color)
+        self.result_text.tag_add("color", "1.0", "end")
+        self.result_text.config(state=tk.DISABLED)
     
     def reset_responses(self):
-        # Reset all scales to 0
         for response in self.responses:
-            response.set('')
+            response.set("0")
+        self.result_text.config(state=tk.NORMAL)
+        self.result_text.delete(1.0, tk.END)
+        self.result_text.config(state=tk.DISABLED)
+    
+    def export_results(self):
+        result_text = self.result_text.get(1.0, tk.END).strip()
+        if not result_text:
+            messagebox.showwarning("Warning", "No results to export!")
+            return
         
-        # Reset the interface for a fresh start
-        messagebox.showinfo("Reset", "All responses have been cleared. Please start over.")
+        file_path = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Text Files", "*.txt")])
+        if file_path:
+            with open(file_path, "w") as file:
+                file.write("PTSD Assessment Results:\n\n")
+                for i, question in enumerate(self.questions):
+                    file.write(f"{question}\nResponse: {self.responses[i].get()}\n\n")
+                file.write(f"Final Analysis: {result_text}\n")
+            messagebox.showinfo("Success", "Results exported successfully!")
+    
+    def show_about(self):
+        about_text = ("PTSD Detector Pro - Version 2.0\n\n"
+                      "This tool is designed for preliminary assessment of PTSD symptoms.\n"
+                      "It is not a diagnostic tool. Always consult with a qualified mental\n"
+                      "health professional for proper evaluation and diagnosis.\n\n"
+                      "Developed with ❤️ by HealthTech Solutions")
+        messagebox.showinfo("About PTSD Detector Pro", about_text)
 
 if __name__ == "__main__":
     root = tk.Tk()
